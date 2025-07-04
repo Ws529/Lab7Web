@@ -1375,6 +1375,7 @@ class Artikel extends BaseController
 }
 
  6. Memodifikasi View
+ 
 a. View artikel/index.php
 <?= $this->include('template/header'); ?>
 
@@ -1415,8 +1416,8 @@ a. View artikel/index.php
   <?php endif; ?>
 </div>
 
-
 <?= $this->include('template/footer'); ?>
+
 b. View artikel/admin_index.php
 Tambahkan dropdown filter kategori dan tampilkan kolom nama kategori.
 
@@ -1488,8 +1489,8 @@ Tambahkan dropdown filter kategori dan tampilkan kolom nama kategori.
   <?= $pager->links() ?>
 </div>
 
-
 <?= $this->include('template/admin_footer'); ?>
+
 c. View artikel/form_add.php dan form_edit.php
 form _add.php
 
