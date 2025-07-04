@@ -1099,6 +1099,7 @@ Menampilkan data dari tabel yang berelasi.
 Pastikan MySQL Server aktif.
 Buka kembali folder proyek lab11_ci di VSCode.
 Jalankan database lab_ci4.
+
 1. Membuat Tabel kategori
 CREATE TABLE kategori (
     id_kategori INT(11) AUTO_INCREMENT,
