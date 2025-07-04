@@ -1113,7 +1113,8 @@ CREATE TABLE kategori (
 ALTER TABLE artikel
 ADD COLUMN id_kategori INT(11),
 ADD CONSTRAINT fk_kategori_artikel
-FOREIGN KEY (id_kategori) REFERENCES kategori(id_kategori);
+FOREIGN KEY (id_kategori) REFERENCES kategori(id_kategori); 
+
 3. Membuat Model KategoriModel.php
 Path: app/Models/KategoriModel.php
 
