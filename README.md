@@ -1,12 +1,12 @@
-# Pertemuan ke 2 
-## Profil
+## Pertemuan ke 2 
+# Profil
 |  |  |
 | -------- | --- |
 | **Nama** | Wawan Suwandi |
 | **Kelas** | TI.23.A.5 |
 | **Mata Kuliah** | Pemrograman Web 2 |
 
-# Praktikum 1: PHP Framework (Codeigniter)
+## Praktikum 1: PHP Framework (Codeigniter)
 
 ## Langkah-langkah Praktikum
 ## Persiapan
@@ -279,4 +279,1383 @@ Kemudian ubah file app/Views/about.php seperti berikut.
 
 Selanjutnya refresh tampilan pada alamat http://localhost:8080/about
 ![Cuplikan layar 2025-03-19 225329](https://github.com/user-attachments/assets/0d892742-c644-4d27-bd9f-dc3e90436bc2)
+
+
+# Praktikum 2: Framework Lanjutan (CRUD)
+
+---
+
+# Tujuan Praktikum
+1. Memahami konsep dasar **Model** pada CodeIgniter 4.
+2. Memahami konsep dasar **CRUD (Create, Read, Update, Delete)**.
+3. Mampu membuat **aplikasi sederhana** menggunakan CRUD di **CodeIgniter 4**.
+4. Menghubungkan aplikasi dengan **database MySQL**.
+5. Menerapkan **best practice coding** untuk CRUD.
+
+---
+
+# Persiapan
+- Gunakan text editor seperti VSCode.
+- Buka folder lab11_ci pada docroot webserver (htdocs).
+- Jalankan XAMPP dan pastikan MySQL Server aktif.
+
+- Buat database baru dengan nama `lab_ci4`:
+  ```sql
+  CREATE DATABASE lab_ci4;
+  ```
+- Buat tabel artikel dengan struktur berikut:
+  ```sql
+  CREATE TABLE artikel (
+      id INT(11) AUTO_INCREMENT,
+      judul VARCHAR(200) NOT NULL,
+      isi TEXT NULL,
+      gambar VARCHAR(200) NULL,
+      status TINYINT(1) NOT NULL DEFAULT 0,
+      slug VARCHAR(200) NULL,
+      PRIMARY KEY(id)
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  );
+  ```
+- Cek database di phpMyAdmin.
+  ![image](https://github.com/user-attachments/assets/d344a41f-73db-48c1-8ba3-e6c0bea6d353)
+
+- Konfigurasi Koneksi Database
+  Gunakan file .env dan atur parameter koneksi database sesuai kebutuhan.
+  ![image](https://github.com/user-attachments/assets/bb8ba0d7-7e93-4925-9c0d-f9c750d902a6)
+
+- Membuat Model
+  Selanjutnya adalah membuat Model untuk memproses data Artikel. Buat file baru pada direktori app/Models dengan nama ArtikelModel.php
+  <?php
+namespace App\Models;
+
+use CodeIgniter\Model;
+
+class ArtikelModel extends Model
+{
+    protected $table = 'artikel';
+    protected $primaryKey = 'id';
+    protected $useAutoIncrement = true;
+    protected $allowedFields = ['judul', 'isi', 'status', 'slug', 'gambar'];
+}
+
+- Membuat Controller
+  Buat Controller baru dengan nama Artikel.php pada direktori app/Controllers.
+  
+<?php
+
+namespace App\Controllers;
+
+use App\Models\ArtikelModel;
+
+class Artikel extends BaseController
+{
+    public function index()
+    {
+        $title = 'Daftar Artikel';
+        $model = new ArtikelModel();
+        $artikel = $model->findAll();
+        return view('artikel/index', compact('artikel', 'title'));
+    }
+}
+
+- Membuat View
+  Buat direktori baru dengan nama artikel pada direktori app/views, kemudian buat file baru dengan nama index.php.
+  
+<?= $this->include('template/header'); ?>
+
+<?php if($artikel): foreach($artikel as $row): ?>
+<article class="entry">
+    <h2<a href="<?= base_url('/artikel/' . $row['slug']);?>"><?= $row['judul']; ?></a>
+</h2>
+    <img src="<?= base_url('/gambar/' . $row['gambar']);?>" alt="<?= $row['judul']; ?>">
+    <p><?= substr($row['isi'], 0, 200); ?></p>
+</article>
+<hr class="divider" />
+<?php endforeach; else: ?>
+<article class="entry">
+    <h2>Belum ada data.</h2>
+</article>
+<?php endif; ?>
+
+<?= $this->include('template/footer'); ?>
+
+Lalu buka browser kembali, dengan mengakses url http://localhost:8080/artikel
+
+![view1](https://github.com/user-attachments/assets/cdb42a9a-5c27-4715-ad85-ab68bf72c014)
+
+Belum ada data yang diampilkan. Kemudian coba tambahkan beberapa data pada database agar dapat ditampilkan datanya.
+
+INSERT INTO artikel (judul, isi, slug) VALUE
+('Artikel pertama', 'Lorem Ipsum adalah contoh teks atau dummy dalam industri percetakan dan penataan huruf atau typesetting. Lorem Ipsum telah menjadi standar contoh teks sejak tahun 1500an, saat seorang tukang cetak yang tidak dikenal mengambil sebuah kumpulan teks dan mengacaknya untuk menjadi sebuah buku contoh huruf.','artikel-pertama'),
+('Artikel kedua', 'Tidak seperti anggapan banyak orang, Lorem Ipsum bukanlah teks-teks yang diacak. Ia berakar dari sebuah naskah sastra latin klasik dari era 45 sebelum masehi, hingga bisa dipastikan usianya telah mencapai lebih dari 2000 tahun.', 'artikel-kedua');
+
+Refresh kembali browser untuk melihat hasilnya.
+
+![view2](https://github.com/user-attachments/assets/3b28bb0e-0b91-426b-9614-a4a64c8731e3)
+
+- Membuat Tampilan Detail Artikel
+  Tampilan pada saat judul berita di klik maka akan diarahkan ke halaman yang berbeda. Tambahkan fungsi baru pada Controller Artikel dengan nama view().
+
+public function view($slug)
+{
+    $model = new ArtikelModel();
+    $artikel = $model->where([
+        'slug' => $slug
+    ])->first();
+
+    // Menampilkan error apabila data tidak ada.
+    if (!$artikel)
+    {
+        throw PageNotFoundException::forPageNotFound();
+    }
+
+    $title = $artikel['judul'];
+    return view('artikel/detail', compact('artikel', 'title'));
+}
+
+- Membuat View Detail
+  Buat view baru untuk halaman detail dengan nama app/views/artikel/detail.php.
+  
+<?= $this->include('template/header'); ?>
+
+<article class="entry">
+    <h2><?= $artikel['judul']; ?></h2>
+    <img src="<?= base_url('/gambar/' . $artikel['gambar']);?>" alt="<?=
+$artikel['judul']; ?>">
+    <p><?= $row['isi']; ?></p>
+</article>
+
+<?= $this->include('template/footer'); ?>
+
+- Membuat Routing untuk artikel detail
+  Buka Kembali file app/config/Routes.php, kemudian tambahkan routing untuk artikel detail.
+  
+$routes->get('/artikel/(:any)', 'Artikel::view/$1');
+
+![Artikel2](https://github.com/user-attachments/assets/4432e348-e87b-4b78-95e0-b630f41b1c1b)
+
+- Membuat Menu Admin
+  Menu admin adalah untuk proses CRUD data artikel. Buat method baru pada Controller Artikel dengan nama admin_index().
+
+public function admin_index()
+{
+    $title = 'Daftar Artikel';
+    $model = new ArtikelModel();
+    $artikel = $model->findAll();
+    return view('artikel/admin_index', compact('artikel', 'title'));
+}
+
+- Selanjutnya buat view untuk tampilan admin dengan nama admin_index.php
+
+<?= $this->include('template/admin_header'); ?>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Judul</th>
+            <th>Status</th>
+            <th>AKsi</th>
+        </tr>
+    </thead>
+    <tbody>
+    <?php if($artikel): foreach($artikel as $row): ?>
+    <tr>
+        <td><?= $row['id']; ?></td>
+        <td>
+            <b><?= $row['judul']; ?></b>
+            <p><small><?= substr($row['isi'], 0, 50); ?></small></p>
+        </td>
+        <td><?= $row['status']; ?></td>
+        <td>
+            <a class="btn" href="<?= base_url('/admin/artikel/edit/' . $row['id']);?>">Ubah</a>
+            <a class="btn btn-danger" onclick="return confirm('Yakin menghapus data?');" href="<?= base_url('/admin/artikel/delete/' . $row['id']);?>">Hapus</a>
+        </td>
+    </tr>
+    <?php endforeach; else: ?>
+    <tr>
+        <td colspan="4">Belum ada data.</td>
+    </tr>
+    <?php endif; ?>
+    </tbody>
+    <tfoot>
+        <tr>
+            <th>ID</th>
+            <th>Judul</th>
+            <th>Status</th>
+            <th>AKsi</th>
+        </tr>
+    </tfoot>
+</table>
+
+<?= $this->include('template/admin_footer'); ?>
+
+- Tambahkan routing untuk menu admin:
+
+$routes->group('admin', function($routes) {
+    $routes->get('artikel', 'Artikel::admin_index');
+    $routes->add('artikel/add', 'Artikel::add');
+    $routes->add('artikel/edit/(:any)', 'Artikel::edit/$1');
+    $routes->get('artikel/delete/(:any)', 'Artikel::delete/$1');
+});
+
+- Akses menu admin  http://localhost:8080/admin/artikel
+  
+  ![Admin](https://github.com/user-attachments/assets/97355c10-3a9a-4f10-8f32-0fd900d94029)
+
+- Menambah Data Artikel
+  Tambahkan fungsi/method baru pada Controller Artikel dengan nama add().
+
+public function add()
+{
+    // validasi data.
+    $validation = \Config\Services::validation();
+    $validation->setRules(['judul' => 'required']);
+    $isDataValid = $validation->withRequest($this->request)->run();
+
+    if ($isDataValid)
+    {
+        $artikel = new ArtikelModel();
+        $artikel->insert([
+            'judul' => $this->request->getPost('judul'),
+            'isi' => $this->request->getPost('isi'),
+            'slug' => url_title($this->request->getPost('judul')),
+        ]);
+        return redirect('admin/artikel');
+    }
+    $title = "Tambah Artikel";
+    return view('artikel/form_add', compact('title'));
+}
+
+- Kemudian buat view untuk form tambah dengan nama form_add.php
+
+<?= $this->include('template/admin_header'); ?>
+
+<h2><?= $title; ?></h2>
+<form action="" method="post">
+    <p>
+        <input type="text" name="judul">
+    </p>
+    <p>
+        <textarea name="isi" cols="50" rows="10"></textarea>
+    </p>
+    <p><input type="submit" value="Kirim" class="btn btn-large"></p>
+</form>
+
+<?= $this->include('template/admin_footer'); ?>
+
+- Mengubah Data
+  Tambahkan fungsi/method baru pada Controller Artikel dengan nama edit().
+
+public function edit($id)
+{
+    $artikel = new ArtikelModel();
+
+    // validasi data.
+    $validation = \Config\Services::validation();
+    $validation->setRules(['judul' => 'required']);
+    $isDataValid = $validation->withRequest($this->request)->run();
+
+    if ($isDataValid)
+    {
+        $artikel->update($id, [
+            'judul' => $this->request->getPost('judul'),
+            'isi' => $this->request->getPost('isi'),
+        ]);
+        return redirect('admin/artikel');
+    }
+
+    // ambil data lama
+    $data = $artikel->where('id', $id)->first();
+    $title = "Edit Artikel";
+    return view('artikel/form_edit', compact('title', 'data'));
+}
+
+- Kemudian buat view untuk form tambah dengan nama form_edit.php
+
+<?= $this->include('template/admin_header'); ?>
+
+<h2><?= $title; ?></h2>
+<form action="" method="post">
+    <p>
+        <input type="text" name="judul" value="<?= $data['judul'];?>" >
+    </p>
+    <p>
+        <textarea name="isi" cols="50" rows="10"><?=$data['isi'];?></textarea>
+    </p>
+    <p><input type="submit" value="Kirim" class="btn btn-large"></p>
+</form>
+
+<?= $this->include('template/admin_footer'); ?>
+
+![form_edit](https://github.com/user-attachments/assets/a8352f8e-5238-4348-b01b-d1fca75e0594)
+
+- Menghapus Data
+  Tambahkan fungsi/method baru pada Controller Artikel dengan nama delete().
+
+public function delete($id)
+{
+    $artikel = new ArtikelModel();
+    $artikel->delete($id);
+    return redirect('admin/artikel');
+}
+
+##  Praktikum 3: View Layout dan View Cell
+
+- Membuat Layout Utama 
+
+Buat folder **layout** di dalam `app/Views/`, lalu buat file `main.php` dengan kode berikut:
+
+```php
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title><?= $title ?? 'My Website' ?></title>
+        <link rel="stylesheet" href="<?= base_url('/style.css'); ?>">
+    </head>
+    <body>
+        <div id="container">
+            <header>
+                <h1>Layout Sederhana</h1>
+            </header>
+            <nav>
+                <a href="<?= base_url('/'); ?>" class="active">Home</a>
+                <a href="<?= base_url('/artikel'); ?>">Artikel</a>
+                <a href="<?= base_url('/about'); ?>">About</a>
+                <a href="<?= base_url('/contact'); ?>">Kontak</a>
+            </nav>
+            <section id="wrapper">
+                <section id="main">
+                    <?= $this->renderSection('content') ?>
+                </section>
+                <aside id="sidebar">
+                    <?= view_cell('App\\Cells\\ArtikelTerkini::render') ?>
+                </aside>
+            </section>
+            <footer>
+                <p>&copy; 2021 - Universitas Pelita Bangsa</p>
+            </footer>
+        </div>
+    </body>
+    </html>
+```
+
+---
+
+- Modifikasi File View
+- 
+Ubah file `app/Views/home.php` agar sesuai dengan layout baru:
+  
+![home-index](https://github.com/user-attachments/assets/f3b8aece-c2a3-43d4-89d0-941f7ba2e8e7)
+
+Sesuaikan juga halaman lain agar menggunakan layout yang baru.  
+
+---
+
+- Menampilkan Data Dinamis dengan View Cell 
+
+View Cell digunakan untuk menampilkan komponen UI yang bisa digunakan ulang. Contoh yang sering digunakan adalah sidebar, widget, atau menu navigasi.
+
+- Membuat Class View Cell
+- 
+1. Buat folder Cells di dalam `app/`.
+2. Buat file `ArtikelTerkini.php` di dalam `app/Cells/` dengan kode berikut:
+
+![cells-artikelterkini](https://github.com/user-attachments/assets/c2669abf-0a9d-4560-b79d-8a7dda212830)
+
+
+- Membuat View untuk View Cell
+1. Buat folder components di dalam `app/Views/`.
+2. Buat file `artikel_terkini.php` di dalam `app/Views/components/` dengan kode berikut:
+3. panggil di dalam layout/main.php
+
+Source code `app/Views/components/`
+![cells-views](https://github.com/user-attachments/assets/c95b8cd0-7956-4fec-9b9b-5c6a55e3e777)
+
+
+Panggil view cell ke dalam `layout/main.php`
+![view_cell](https://github.com/user-attachments/assets/34767428-4e0a-4d87-a0f1-60af72d16f06)
+
+- Pertanyaan dan Tugas
+1. Sesuaikan data dengan praktikum sebelumnya, perlu melakukan perubahan field pada database dengan menambahkan tanggal agar dapat mengambil data artikel terbaru.
+   ALTER TABLE artikel ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+   ![1](https://github.com/user-attachments/assets/dbb5e2d5-d27b-42f2-a1d7-f3d538660fa2)
+2. Selesaikan programnya sesuai Langkah-langkah yang ada. Anda boleh melakukan improvisasi.
+3. Apa manfaat utama dari penggunaan View Layout dalam pengembangan aplikasi?
+View Layout memberikan cara untuk membuat struktur tampilan yang konsisten di seluruh halaman aplikasi. Dengan layout, kita hanya membuat satu file kerangka HTML (seperti header, sidebar, footer), dan konten halaman tinggal di-inject ke dalamnya. Ini:
+
+Menghemat waktu
+Memudahkan pemeliharaan tampilan
+Menghindari duplikasi kode
+4. Jelaskan perbedaan antara View Cell dan View biasa.
+Fitur	View Layout	View Cell
+Fungsi	Template utama yang mengatur struktur tampilan	Komponen modular yang bisa dipanggil dalam tampilan
+Fleksibilitas	Digunakan untuk halaman penuh	Bisa digunakan dalam bagian kecil seperti sidebar atau widget
+Pemakaian	extend() dan renderSection()	view_cell()
+Contoh Penggunaan	Layout utama website dengan header, footer, dan sidebar	Daftar artikel terbaru, widget pencarian, dll
+5. Ubah View Cell agar hanya menampilkan post dengan kategori tertentu.
+Langkah:
+Tambahkan field kategori di tabel artikel
+ALTER TABLE artikel ADD kategori VARCHAR(50);
+![2](https://github.com/user-attachments/assets/3b68fa41-6adb-4cc7-b1fe-db9086be0ea8)
+Tambahkan parameter kategori di method render:
+
+public function render($kategori = null)
+{
+    $model = new ArtikelModel();
+    $query = $model->orderBy('created_at', 'DESC');
+
+    if ($kategori) {
+        $query->where('kategori', $kategori);
+    }
+
+    $artikel = $query->limit(5)->findAll();
+
+    return view('components/artikel_terkini', ['artikel' => $artikel]);
+}
+
+Isi setiap kolom pada tabel, bisa manual atau lewat fitur tambah artikel
+Modifikasi View Cell agar filter berdasarkan kategori Buka app/Cells/ArtikelTerkini.php, ubah fungsi render() jadi seperti ini:
+<?php
+
+namespace App\Cells;
+
+use App\Models\ArtikelModel;
+
+class ArtikelTerkini
+{
+    public function render($kategori = null)
+    {
+        $model = new ArtikelModel();
+
+        $query = $model->orderBy('created_at', 'DESC')->limit(5);
+        if ($kategori) {
+            $query->where('kategori', $kategori);
+        }
+
+        $artikel = $query->findAll();
+
+        return view('components/artikel_terkini', ['artikel' => $artikel]);
+    }
+}
+
+Panggil View Cell dengan parameter kategori Pada app/Views/layout/main.php:
+<?= view_cell('App\\Cells\\ArtikelTerkini::render', ['kategori' => 'Teknologi']) ?>
+Tambahkan route agar URL seperti /kategori/teknologi bisa diakses:
+$routes->get('/kategori/(:segment)', 'Artikel::kategori/$1');
+Tambah View-nya (app/Views/artikel/kategori.php)
+
+<?= $this->extend('layout/main') ?>
+<?= $this->section('content') ?>
+
+<h2><?= $title ?></h2>
+<ul>
+    <?php foreach ($artikel as $row): ?>
+        <li>
+            <a href="<?= base_url('/artikel/' . $row['slug']) ?>">
+                <?= esc($row['judul']) ?>
+            </a>
+        </li>
+    <?php endforeach; ?>
+</ul>
+
+<?= $this->endSection() ?>
+
+Screenshot :
+![Olahraga](https://github.com/user-attachments/assets/ceb4ee55-9ea1-4f35-b6f4-a84d6bb62916)
+
+![Teknologi](https://github.com/user-attachments/assets/453aed34-5068-4c97-b54b-443526b4198e)
+
+## Praktikum ke 4 - 6
+
+Langkah-langkah Praktikum
+Praktikum 4: Membuat Sistem Login
+
+1. Persiapkan Database
+Buat tabel user pada database dengan SQL berikut:
+
+CREATE TABLE user (
+  id INT(11) auto_increment,
+  username VARCHAR(200) NOT NULL,
+  useremail VARCHAR(200),
+  userpassword VARCHAR(200),
+  PRIMARY KEY(id)
+);
+![Database](https://github.com/user-attachments/assets/fecddce1-e795-4566-ba6b-cb79112366c1)
+
+2. Membuat Model User
+Buat model UserModel.php pada direktori app/Models:
+
+<?php
+namespace App\Models;
+use CodeIgniter\Model;
+
+class UserModel extends Model
+{
+    protected $table = 'user';
+    protected $primaryKey = 'id';
+    protected $useAutoIncrement = true;
+    protected $allowedFields = ['username', 'useremail', 'userpassword'];
+}
+
+3. Membuat Controller User
+Buat controller User.php dengan method index() dan login() untuk mengelola user dan login:
+
+<?php
+
+namespace App\Controllers;
+
+use App\Models\UserModel;
+
+class User extends BaseController
+{
+    public function index()
+    {
+        $title = 'Daftar User';
+        $model = new UserModel();
+        $users = $model->findAll();
+        return view('user/index', compact('users', 'title'));
+    }
+    public function login()
+    {
+        helper(['form']);
+        $email = $this->request->getPost('email');
+        $password = $this->request->getPost('password');
+        if (!$email)
+        {
+        return view('user/login');
+        }
+
+        $session = session();
+        $model = new UserModel();
+        $login = $model->where('useremail', $email)->first();
+        if ($login)
+        {
+            $pass = $login['userpassword'];
+            if (password_verify($password, $pass))
+            {
+                $login_data = [
+                'user_id' => $login['id'],
+                'user_name' => $login['username'],
+                'user_email' => $login['useremail'],
+                'logged_in' => TRUE,
+                ];
+
+                $session->set($login_data);
+                return redirect('admin/artikel');
+            }
+            else
+            {
+                $session->setFlashdata("flash_msg", "Password salah.");
+                return redirect()->to('/user/login');
+            }
+        }
+        else
+        {
+            $session->setFlashdata("flash_msg", "email tidak terdaftar.");
+            return redirect()->to('/user/login');
+        }
+    }
+}
+
+4. Membuat View Login
+Buat view login.php untuk form login:
+
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>Login</title>
+		<link rel="stylesheet" href="<?= base_url('/style.css'); ?>" />
+	</head>
+
+	<body>
+		<div id="login-wrapper">
+			<h1>Sign In</h1>
+			<?php if (session()->getFlashdata('flash_msg')): ?>
+			<div class="alert alert-danger">
+				<?= session()->getFlashdata('flash_msg') ?>
+			</div>
+			<?php endif; ?>
+			<form action="" method="post">
+				<div class="mb-3">
+					<label for="InputForEmail" class="form-label">Email address</label>
+					<input
+						type="email"
+						name="email"
+						class="form-control"
+						id="InputForEmail"
+						value="<?= set_value('email') ?>"
+					/>
+				</div>
+				<div class="mb-3">
+					<label for="InputForPassword" class="form-label">Password</label>
+
+					<input
+						type="password"
+						name="password"
+						class="form-control"
+						id="InputForPassword"
+					/>
+				</div>
+				<button type="submit" class="btn btn-primary">Login</button>
+			</form>
+		</div>
+	</body>
+</html>
+
+5. Membuat Database Seeder
+Database seeder digunakan untuk membuat data dummy. Untuk keperluan ujicoba modul login, kita perlu memasukkan data user dan password kedaalam database. Untuk itu buat database seeder untuk tabel user. Buka CLI, kemudian tulis perintah berikut:
+
+php spark make:seeder UserSeeder
+Selanjutnya, buka file UserSeeder.php yang berada di lokasi direktori/app/Database/Seeds/UserSeeder.php kemudian isi dengan kode berikut:
+
+<?php
+
+namespace App\Database\Seeds;
+
+use CodeIgniter\Database\Seeder;
+
+class UserSeeder extends Seeder
+{
+    public function run()
+    {
+        $model = model('UserModel');
+        $model->insert([
+            'username' => 'admin',
+            'useremail' => 'admin@email.com',
+            'userpassword' => password_hash('admin123', PASSWORD_DEFAULT),
+        ]);
+    }
+}
+
+Selanjutnya buka kembali CLI dan ketik berikut:
+
+php spark db:seed UserSeeder
+
+6. Membuat Filter Auth
+Buat filter Auth.php untuk membatasi akses ke halaman admin:
+
+<?php namespace App\Filters;
+
+use CodeIgniter\HTTP\RequestInterface;
+use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\Filters\FilterInterface;
+
+class Auth implements FilterInterface
+{
+    public function before(RequestInterface $request, $arguments = null)
+    {
+        // jika user belum login
+        if (! session()->get('logged_in')) {
+            // maka redirct ke halaman login
+            return redirect()->to('/user/login');
+        }
+    }
+    public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
+    {
+        // Do something here
+    }
+}
+
+Selanjutnya buka file app/Config/Filters.php tambahkan kode:
+
+'auth' => App\Filters\Auth::class
+
+![Auth Filters](https://github.com/user-attachments/assets/0e4d9907-d6ae-4a18-91a3-6b71bcd1145d)
+![Routes](https://github.com/user-attachments/assets/f437b94f-f10b-418d-a68e-2f348316341d)
+
+7. Percobaan Akses Menu Admin
+Buka url dengan alamat http://localhost:8080/admin/artikel ketika alamat tersebut diakses maka, akan dimuculkan halaman login.
+
+8. Fungsi Logout
+Tambahkan method logout pada Controller User seperti berikut:
+
+public function logout()
+    {
+        session()->destroy();
+        return redirect()->to('/user/login');
+    }
+    
+## Praktikum 5: Pagination dan Pencarian
+1. Membuat Pagination
+Modifikasi controller artikel untuk menambahkan pagination:
+
+public function admin_index()
+{
+    $title = 'Daftar Artikel';
+    $model = new ArtikelModel();
+    $data = [
+        'title' => $title,
+        'artikel' => $model->paginate(10), #data dibatasi 10 record per halaman
+        'pager' => $model->pager,
+    ];
+    return view('artikel/admin_index', $data);
+}
+Kemudian buka file views/artikel/admin_index.php dan tambahkan kode berikut dibawah deklarasi tabel data.
+
+<?= $pager->links(); ?>
+Selanjutnya buka kembali menu daftar artikel, tambahkan data lagi untuk melihat hasilnya.
+![pagination](https://github.com/user-attachments/assets/b374fe9e-092f-46b6-b7ba-7a5a3f79f201)
+
+2. Membuat Pencarian
+Modifikasi controller untuk menambahkan pencarian data:
+
+public function admin_index()
+    {
+        $title = 'Daftar Artikel';
+        $q = $this->request->getVar('q') ?? '';
+        $model = new ArtikelModel();
+        $data = [
+            'title' => $title,
+            'q' => $q,
+            'artikel' => $model->like('judul', $q)->paginate(10), # data dibatasi 10 record per halaman
+            'pager' => $model->pager,
+        ];
+        return view('artikel/admin_index', $data);
+    }
+Kemudian buka kembali file views/artikel/admin_index.php dan tambahkan form pencarian sebelum deklarasi tabel seperti berikut:
+
+<form method="get" class="form-search">
+    <input type="text" name="q" value="<?= $q; ?>" placeholder="Cari data">
+    <input type="submit" value="Cari" class="btn btn-primary">
+</form>
+Dan pada link pager ubah seperti berikut.
+
+<?= $pager->only(['q'])->links(); ?>
+
+3. Uji Coba Pagination dan Pencarian
+Selanjutnya ujicoba dengan membuka kembali halaman admin artikel, masukkan kata kunci tertentu pada form pencarian.
+
+![search](https://github.com/user-attachments/assets/db3f9a93-1310-462a-b59c-f3933f1a848d)
+
+## Praktikum 6: Upload File Gambar
+1. Modifikasi Controller Artikel
+Buka kembali Controller Artikel pada project sebelumnya, sesuaikan kode pada method add seperti berikut:
+
+public function add()
+    {
+        // validasi data.
+        $validation = \Config\Services::validation();
+        $validation->setRules(['judul' => 'required']);
+        $isDataValid = $validation->withRequest($this->request)->run();
+        if ($isDataValid) {
+            $file = $this->request->getFile('gambar');
+            $file->move(ROOTPATH . 'public/gambar');
+            $artikel = new ArtikelModel();
+            $artikel->insert([
+                'judul' => $this->request->getPost('judul'),
+                'isi' => $this->request->getPost('isi'),
+                'slug' => url_title($this->request->getPost('judul')),
+                'gambar' => $file->getName(),
+            ]);
+            return redirect('admin/artikel');
+        }
+        $title = "Tambah Artikel";
+        return view('artikel/form_add', compact('title'));
+    }
+2. Modifikasi View Artikel
+Tambahkan field input file pada form artikel:
+
+<p>
+    <input type="file" name="gambar">
+</p>
+Dan sesuaikan tag form dengan menambahkan ecrypt type seperti berikut.
+
+<form action="" method="post" enctype="multipart/form-data">
+ 
+3. Uji Coba Upload Gambar
+Akses menu tambah artikel dan uji coba upload gambar.
+![add file](https://github.com/user-attachments/assets/e57447a5-c014-4066-bb81-3de359b25ec5)
+
+---
+
+## Praktikum 7 - 11: PHP Framework (CodeIgniter 4) & Vuejs
+Dokumentasi ini berisi rangkuman materi dan latihan dalam Praktikum 7-11 dari mata kuliah Pemorograman Web 2.
+Setiap praktikum membahas berbagai aspek penggunaan PHP Framework CodeIgniter 4, mulai dari dasar hingga konsep lanjutan seperti Relasi Tabel dan Query Builder, Ajax, dan Implementasi AJAX Pagination dan Search, REST API.
+
+Praktikum ini bertujuan untuk memberikan pemahaman mendalam tentang pengembangan aplikasi web berbasis CodeIgniter 4, termasuk konfigurasi awal, struktur proyek, serta implementasi fitur-fitur esensial dalam sebuah aplikasi web.
+
+| Variable           | Isi                         |
+| ------------------ | --------------------------- |
+| **Nama**           | Wawan Suwandi         |
+| **NIM**            | 312310457                   |
+| **Kelas**          | TI.23.A.5                   |
+| **Mata Kuliah**    | Pemrograman Web 2           |
+| **Dosen Pengampu** | Agung Nugroho S.kom., M.kom |
+
+---
+
+## Praktikum 7: Relasi Tabel dan Query Builder
+
+ Tujuan Praktikum
+Memahami konsep relasi antar tabel dalam database.
+Mengimplementasikan relasi One-to-Many.
+Melakukan query dengan join tabel menggunakan Query Builder.
+Menampilkan data dari tabel yang berelasi.
+⚙ Persiapan Awal
+Pastikan MySQL Server aktif.
+Buka kembali folder proyek lab11_ci di VSCode.
+Jalankan database lab_ci4.
+1. Membuat Tabel kategori
+CREATE TABLE kategori (
+    id_kategori INT(11) AUTO_INCREMENT,
+    nama_kategori VARCHAR(100) NOT NULL,
+    slug_kategori VARCHAR(100),
+    PRIMARY KEY (id_kategori)
+);
+
+![tabel_kategori](https://github.com/user-attachments/assets/ee16accd-54f8-4f7e-b623-51ef6d19d2cd)
+
+2. Mengubah Tabel artikel
+ALTER TABLE artikel
+ADD COLUMN id_kategori INT(11),
+ADD CONSTRAINT fk_kategori_artikel
+FOREIGN KEY (id_kategori) REFERENCES kategori(id_kategori);
+3. Membuat Model KategoriModel.php
+Path: app/Models/KategoriModel.php
+
+<?php
+
+namespace App\Models;
+
+use CodeIgniter\Model;
+
+class KategoriModel extends Model
+{
+    protected $table = 'kategori';
+    protected $primaryKey = 'id_kategori';
+    protected $useAutoIncrement = true;
+    protected $allowedFields = ['nama_kategori', 'slug_kategori'];
+}
+
+ 4. Memodifikasi Model ArtikelModel.php
+Tambahkan method untuk mengambil data artikel beserta nama kategori.
+
+<?php
+
+namespace App\Models;
+
+use CodeIgniter\Model;
+
+class KategoriModel extends Model
+{
+    protected $table = 'kategori';
+    protected $primaryKey = 'id_kategori';
+    protected $allowedFields = ['nama_kategori'];
+
+     public function getAllKategori()
+    {
+        return $this->findAll();
+    }
+}
+
+ 5. Memodifikasi Controller Artikel.php
+Gunakan method getArtikelDenganKategori() pada method index dan admin_index. Tambahkan juga filter berdasarkan kategori_id.
+
+Contoh pengambilan data artikel dengan join:
+
+<?php
+
+namespace App\Controllers;
+
+use App\Models\ArtikelModel;
+use App\Models\KategoriModel;
+use CodeIgniter\Exceptions\PageNotFoundException;
+
+class Artikel extends BaseController
+{
+    // Menampilkan daftar artikel
+    public function index()
+    {
+        // Membuat objek model
+        $artikelModel = new ArtikelModel();
+        $kategoriModel = new KategoriModel();
+
+        // Mengambil data artikel beserta kategori
+        $artikel = $artikelModel->getArtikelDenganKategori();
+
+        // Mengambil daftar kategori
+        $kategori = $kategoriModel->getAllKategori();
+
+        // Mengirimkan data ke view
+        return view('artikel/index', [
+            'artikel' => $artikel,
+            'kategori' => $kategori
+        ]);
+    }
+
+    // Menampilkan artikel berdasarkan slug
+  public function view($slug)
+{
+    $model = new ArtikelModel();
+    // Gabungkan artikel dengan kategori
+    $artikel = $model->select('artikel.*, kategori.nama_kategori')
+                     ->join('kategori', 'kategori.id_kategori = artikel.id_kategori', 'left')
+                     ->where(['slug' => $slug])
+                     ->first();
+
+    if (!$artikel) {
+        throw PageNotFoundException::forPageNotFound();
+    }
+
+    $title = $artikel['judul'];
+    return view('artikel/detail', compact('artikel', 'title'));
+}
+
+
+    // Menampilkan artikel admin dan pencarian
+  public function admin_index()
+{
+    $title = 'Daftar Artikel';
+    $q = $this->request->getVar('q') ?? '';  // Ambil pencarian dari URL
+    $kategoriId = $this->request->getVar('kategori'); // Ambil kategori dari URL
+
+    // Model Artikel
+    $model = new ArtikelModel();
+
+    // Menggabungkan artikel dengan kategori
+    $model->select('artikel.*, kategori.nama_kategori')
+          ->join('kategori', 'kategori.id_kategori = artikel.id_kategori', 'left');
+
+    // Filter berdasarkan pencarian jika ada
+    if (!empty($q)) {
+        $model->like('judul', $q)->orLike('isi', $q);
+    }
+
+    // Filter berdasarkan kategori jika ada
+    if (!empty($kategoriId)) {
+        $model->where('artikel.id_kategori', $kategoriId);
+    }
+
+    // Ambil artikel dan paginate
+    $data = [
+        'title'   => $title,
+        'q'       => $q,
+        'selectedKategori' => $kategoriId,
+        'kategori' => (new KategoriModel())->findAll(), // Ambil kategori
+        'artikel' => $model->paginate(5),  // Artikel per halaman
+        'pager'   => $model->pager,  // Pagination
+    ];
+
+    return view('artikel/admin_index', $data);
+}
+
+
+
+   public function search()
+{
+    $q = $this->request->getGet('q');  // Ambil query pencarian dari URL
+    $kategoriId = $this->request->getGet('kategori');  // Ambil kategori yang dipilih
+
+    // Ambil model artikel
+    $artikelModel = new \App\Models\ArtikelModel();
+    $query = $artikelModel->where('1=1');  // Mulai query dengan kondisi true
+
+    // Filter berdasarkan kata kunci jika ada
+    if ($q) {
+        $query = $query->like('judul', $q)->orLike('isi', $q);
+    }
+
+    // Filter berdasarkan kategori jika ada
+    if ($kategoriId) {
+        $query = $query->where('id_kategori', $kategoriId);
+    }
+
+    // Ambil artikel yang sesuai dengan filter
+    $artikel = $query->findAll();
+
+    // Ambil data kategori untuk dropdown
+    $kategoriModel = new \App\Models\KategoriModel();
+    $kategori = $kategoriModel->findAll();  // Pastikan kategori diambil dengan benar
+
+    // Kirim data ke view
+    return view('artikel/admin_index', [
+        'q' => $q,
+        'selectedKategori' => $kategoriId,
+        'kategori' => $kategori,  // Kirimkan kategori ke view
+        'artikel' => $artikel,  // Kirimkan artikel yang ditemukan
+    ]);
+}
+
+
+
+
+    // Menambahkan artikel baru
+    public function add()
+    {
+        $validation = \Config\Services::validation();
+        $validation->setRules([
+            'judul' => 'required',
+            'id_kategori' => 'required'
+        ]);
+
+        $isDataValid = $validation->withRequest($this->request)->run();
+
+        if ($isDataValid) {
+            $file = $this->request->getFile('gambar');
+            $namaGambar = '';
+
+            if ($file && $file->isValid()) {
+                // Pindahkan file gambar ke folder gambar
+                $file->move(ROOTPATH . 'public/gambar');
+                $namaGambar = $file->getName();
+            }
+
+            $artikel = new ArtikelModel();
+            // Pastikan slug unik
+            $slug = url_title($this->request->getPost('judul'), '-', true);
+
+            // Insert data artikel
+            $artikel->insert([
+                'judul'       => $this->request->getPost('judul'),
+                'isi'         => $this->request->getPost('isi'),
+                'id_kategori' => $this->request->getPost('id_kategori'),
+                'slug'        => $slug,
+                'gambar'      => $namaGambar,
+            ]);
+            return redirect()->to('/admin/artikel');
+        }
+
+        $title = "Tambah Artikel";
+        $kategoriModel = new KategoriModel();
+        $kategori = $kategoriModel->findAll();
+        return view('artikel/form_add', compact('title', 'kategori'));
+    }
+
+    // Mengedit artikel
+    public function edit($id)
+    {
+        $artikel = new ArtikelModel();
+        $validation = \Config\Services::validation();
+        $validation->setRules([
+            'judul' => 'required',
+            'id_kategori' => 'required'
+        ]);
+
+        $isDataValid = $validation->withRequest($this->request)->run();
+
+        if ($isDataValid) {
+            $dataUpdate = [
+                'judul'       => $this->request->getPost('judul'),
+                'isi'         => $this->request->getPost('isi'),
+                'id_kategori' => $this->request->getPost('id_kategori'),
+            ];
+
+            $file = $this->request->getFile('gambar');
+            if ($file && $file->isValid() && !$file->hasMoved()) {
+                $file->move(ROOTPATH . 'public/gambar');
+                $dataUpdate['gambar'] = $file->getName();
+            }
+
+            // Update artikel
+            $artikel->update($id, $dataUpdate);
+            return redirect()->to('/admin/artikel');
+        }
+
+        // Ambil data artikel untuk diedit
+        $data = $artikel->where('id', $id)->first();
+        $title = "Edit Artikel";
+        $kategoriModel = new KategoriModel();
+        $kategori = $kategoriModel->findAll();
+
+        return view('artikel/form_edit', compact('title', 'data', 'kategori'));
+    }
+
+    // Menghapus artikel
+    public function delete($id)
+    {
+        $artikel = new ArtikelModel();
+        $artikel->delete($id);
+        return redirect()->to('/admin/artikel');
+    }
+}
+
+ 6. Memodifikasi View
+a. View artikel/index.php
+<?= $this->include('template/header'); ?>
+
+<!-- Menampilkan Daftar Kategori -->
+<div class="kategori-container">
+  <h3>Kategori</h3>
+  <ul>
+    <?php if ($kategori): foreach ($kategori as $cat): ?>
+    <li><a href="<?= base_url('/kategori/' . $cat['id_kategori']); ?>"><?= $cat['nama_kategori']; ?></a></li>
+    <?php endforeach; else: ?>
+    <li>No categories found</li>
+    <?php endif; ?>
+  </ul>
+</div>
+
+<!-- Artikel yang sudah ada -->
+<div class="article-container">
+  <?php if ($artikel): foreach ($artikel as $row): ?>
+  <article class="entry">
+    <div class="entry-meta">
+      <span class="category"><?= $row['nama_kategori'] ?></span>
+    </div>
+    <h2 class="entry-title">
+      <a href="<?= base_url('/artikel/' . $row['slug']); ?>"><?= $row['judul']; ?></a>
+    </h2>
+    <div class="entry-image">
+      <img src="<?= base_url('/gambar/' . $row['gambar']); ?>" alt="<?= $row['judul']; ?>">
+    </div>
+    <div class="entry-excerpt">
+      <p><?= substr($row['isi'], 0, 200); ?>...</p>
+      <a href="<?= base_url('/artikel/' . $row['slug']); ?>" class="read-more">Read More</a>
+    </div>
+  </article>
+  <?php endforeach; else: ?>
+  <article class="entry">
+    <h2 class="entry-title">No articles found.</h2>
+  </article>
+  <?php endif; ?>
+</div>
+
+
+<?= $this->include('template/footer'); ?>
+b. View artikel/admin_index.php
+Tambahkan dropdown filter kategori dan tampilkan kolom nama kategori.
+
+<?= $this->include('template/admin_header'); ?>
+<form method="get" class="form-search">
+  <input type="text" name="q" value="<?= $q; ?>" placeholder="Cari artikel...">
+
+  <select name="kategori" id="kategori">
+    <option value="">Semua Kategori</option>
+    <?php if (isset($kategori) && !empty($kategori)): ?>
+    <?php foreach ($kategori as $cat): ?>
+    <option value="<?= $cat['id_kategori']; ?>" <?= ($selectedKategori == $cat['id_kategori']) ? 'selected' : ''; ?>>
+      <?= $cat['nama_kategori']; ?>
+    </option>
+    <?php endforeach; ?>
+    <?php else: ?>
+    <option disabled>Tidak ada kategori</option>
+    <?php endif; ?>
+  </select>
+
+  <input type="submit" value="Cari" class="btn">
+</form>
+
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Judul</th>
+      <th>Kategori</th>
+      <th>Status</th>
+      <th>Aksi</th>
+    </tr>
+  </thead>
+  <tbody>
+    <?php if($artikel): foreach($artikel as $row): ?>
+    <tr>
+      <td><?= $row['id']; ?></td>
+      <td>
+        <b><?= esc($row['judul']); ?></b>
+        <p><small><?= esc(substr($row['isi'], 0, 50)); ?>...</small></p>
+      </td>
+      <td><?= esc($row['nama_kategori'] ?? 'Tidak ada'); ?></td>
+      <td><?= esc($row['status']); ?></td>
+      <td>
+        <a class="btn btn-primary" href="<?= base_url('/admin/artikel/edit/' . $row['id']); ?>">Ubah</a>
+        <a class="btn btn-danger" onclick="return confirm('Yakin menghapus data?');"
+          href="<?= base_url('/admin/artikel/delete/' . $row['id']); ?>">Hapus</a>
+      </td>
+    </tr>
+    <?php endforeach; else: ?>
+    <tr>
+      <td colspan="5">Belum ada data.</td>
+    </tr>
+    <?php endif; ?>
+  </tbody>
+  <tfoot>
+    <tr>
+      <th>ID</th>
+      <th>Judul</th>
+      <th>Kategori</th>
+      <th>Status</th>
+      <th>Aksi</th>
+    </tr>
+  </tfoot>
+</table>
+
+<!-- Pagination Section -->
+<div class="pagination">
+  <?= $pager->links() ?>
+</div>
+
+
+<?= $this->include('template/admin_footer'); ?>
+c. View artikel/form_add.php dan form_edit.php
+form _add.php
+
+<div class="container">
+  <div class="form-card">
+    <div class="form-header">
+      <h1 class="form-title"><?= $title ?></h1>
+      <p class="form-subtitle">
+        <?= isset($artikel['id']) ? 'Edit artikel yang sudah ada' : 'Buat artikel baru untuk dipublikasikan' ?></p>
+    </div>
+
+    <form action="" method="post" enctype="multipart/form-data" class="form-grid">
+      <div class="form-group">
+        <label for="judul" class="form-label">Judul Artikel <span>(wajib)</span></label>
+        <input type="text" id="judul" name="judul" class="form-control"
+          placeholder="Contoh: Cara Membuat Website Modern"
+          value="<?= isset($artikel['judul']) ? esc($artikel['judul']) : '' ?>" required>
+      </div>
+
+      <div class="form-group">
+        <label for="isi" class="form-label">Isi Artikel <span>(wajib)</span></label>
+        <textarea id="isi" name="isi" class="form-control" placeholder="Tulis konten artikel Anda di sini..."
+          required><?= isset($artikel['isi']) ? esc($artikel['isi']) : '' ?></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="id_kategori" class="form-label">Kategori</label>
+        <select id="id_kategori" name="id_kategori" class="form-control">
+          <option value="">-- Pilih Kategori --</option>
+          <?php foreach($kategori as $k): ?>
+          <option value="<?= $k['id_kategori']; ?>"
+            <?= (isset($artikel['id_kategori']) && $artikel['id_kategori'] == $k['id_kategori']) ? 'selected' : ''; ?>>
+            <?= esc($k['nama_kategori']); ?>
+          </option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="status" class="form-label">Status Publikasi</label>
+        <select id="status" name="status" class="form-control">
+          <option value="draft" <?= (isset($artikel['status']) && $artikel['status'] == 'draft') ? 'selected' : ''; ?>>
+            Draft</option>
+          <option value="publish"
+            <?= (isset($artikel['status']) && $artikel['status'] == 'publish') ? 'selected' : ''; ?>>Publish</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Gambar Utama</label>
+        <div class="file-upload">
+          <input type="file" id="gambar" name="gambar" class="file-upload-input" accept="image/*">
+          <label for="gambar" class="file-upload-label">
+            <div class="file-upload-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <div class="file-upload-text">Unggah Gambar</div>
+              <div class="file-upload-hint">PNG, JPG maksimal 2MB</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="btn">
+        <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+        <?= isset($artikel['id']) ? 'Update Artikel' : 'Simpan Artikel' ?>
+      </button>
+    </form>
+  </div>
+</div>
+form_edit.php
+
+<div class="container">
+  <form action="" method="post" enctype="multipart/form-data">
+    <div class="form-header">
+      <h1><?= $title; ?></h1>
+      <div class="action-buttons">
+        <button type="button" class="btn btn-secondary" onclick="history.back()">
+          <i class="fas fa-arrow-left"></i> Kembali
+        </button>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save"></i> Simpan Artikel
+        </button>
+      </div>
+    </div>
+
+    <div class="form-content">
+      <div class="content-main">
+        <div class="card">
+          <div class="form-group">
+            <label for="judul">Judul Artikel</label>
+            <input type="text" name="judul" id="judul" value="<?= isset($data['judul']) ? $data['judul'] : ''; ?>"
+              placeholder="Masukkan judul artikel" required>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="form-group">
+            <label for="isi">Isi Artikel</label>
+            <textarea name="isi" id="isi" placeholder="Tulis isi artikel..."
+              required><?= isset($data['isi']) ? $data['isi'] : ''; ?></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-sidebar">
+        <div class="card">
+          <div class="form-group">
+            <label for="id_kategori">Kategori</label>
+            <select name="id_kategori" id="id_kategori" required>
+              <option value="">Pilih Kategori</option>
+              <?php foreach ($kategori as $cat): ?>
+              <option value="<?= $cat['id_kategori']; ?>"
+                <?= (isset($data['id_kategori']) && $data['id_kategori'] == $cat['id_kategori']) ? 'selected' : ''; ?>>
+                <?= $cat['nama_kategori']; ?>
+              </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="form-group">
+            <label>Gambar Artikel</label>
+            <div class="file-input">
+              <div class="file-upload">
+                <input type="file" name="gambar" id="gambar" accept="image/*" onchange="previewImage(this)">
+                <div class="upload-content">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                  <p>Klik atau drop gambar di sini</p>
+                </div>
+              </div>
+
+              <?php if (isset($data['gambar']) && $data['gambar']): ?>
+              <div id="image-preview-container">
+                <img src="<?= base_url('uploads/' . $data['gambar']); ?>" alt="Gambar Artikel" class="preview-image"
+                  id="image-preview">
+              </div>
+              <?php else: ?>
+              <div id="image-preview-container" style="display: none;">
+                <img src="" alt="Preview" class="preview-image" id="image-preview">
+              </div>
+              <?php endif; ?>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+🧪 7. Testing Fitur
+
+- Menampilkan daftar artikel beserta kategori
+
+- Menambah artikel baru dengan kategori
+
+- Mengedit artikel dan ubah kategori
+
+- Menghapus artikel
+
+
 
